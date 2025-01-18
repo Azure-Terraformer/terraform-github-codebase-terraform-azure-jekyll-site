@@ -6,6 +6,10 @@ variable "branch" {
   type        = string
   description = "The branch of the GitHub repository where the workflow YAML file will be committed."
 }
+variable "location" {
+  type        = string
+  description = "The Azure Region to provision the Web Site into"
+}
 variable "path" {
   type        = string
   description = <<DESCRIPTION
