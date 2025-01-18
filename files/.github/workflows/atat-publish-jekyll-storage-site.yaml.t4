@@ -6,6 +6,9 @@ on:
     types: 
       - completed
 
+env:
+  WorkingDirectory: ${working_directory}
+
 permissions:
   id-token: write
   contents: read
@@ -77,13 +80,13 @@ jobs:
           ruby-version: 3.0 # You can specify a version compatible with your Jekyll setup
 
       - name: Install dependencies
-        working-directory: $${{ vars.JEKYLL_WORKING_DIRECTORY }}
+        working-directory: $${{ env.WorkingDirectory }}
         run: |
           gem install bundler
           bundle install
 
       - name: Build with Jekyll
-        working-directory: $${{ vars.JEKYLL_WORKING_DIRECTORY }}
+        working-directory: $${{ env.WorkingDirectory }}
         # Outputs to the './_site' directory by default
         run: bundle exec jekyll build
         env:
@@ -91,7 +94,7 @@ jobs:
 
       # Step 6: Upload the Jekyll site to Azure Blob Storage
       - name: Upload site to Azure Storage
-        working-directory: $${{ vars.JEKYLL_WORKING_DIRECTORY }}
+        working-directory: $${{ env.WorkingDirectory }}
         env:
           ARM_SUBSCRIPTION_ID: $${{ vars.ARM_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: $${{ vars.ARM_TENANT_ID }}

@@ -16,7 +16,7 @@ resource "github_repository_file" "push_deploy" {
 
   content = templatestring(local.merge_original_yaml,
     {
-      working_directory = var.path
+      working_directory = "sites/www"
       environment_name  = each.key
     }
   )
