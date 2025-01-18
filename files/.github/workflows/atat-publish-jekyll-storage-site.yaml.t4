@@ -92,21 +92,26 @@ jobs:
         env:
           JEKYLL_ENV: production
 
+      - name: 'Az CLI login'
+        uses: azure/login@v1
+        with:
+          client-id: $${{ vars.TERRAFORM_ARM_CLIENT_ID }}
+          tenant-id: $${{ vars.ARM_TENANT_ID }}
+          subscription-id: $${{ vars.ARM_SUBSCRIPTION_ID }}
+
       # Step 6: Upload the Jekyll site to Azure Blob Storage
       - name: Upload site to Azure Storage
         working-directory: $${{ env.WorkingDirectory }}
         env:
           ARM_SUBSCRIPTION_ID: $${{ vars.ARM_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: $${{ vars.ARM_TENANT_ID }}
-          ARM_CLIENT_ID: $${{ vars.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: $${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_CLIENT_ID: $${{ vars.TERRAFORM_ARM_CLIENT_ID }}
+          ARM_USE_OIDC: true
           STORAGE_ACCOUNT_NAME: $${{ needs.infra.outputs.storage_account_name }}
         run: |
 
           ONE_HOUR_AGO=$(date -u -d '1 hour ago' +"%Y-%m-%dT%H:%M:%SZ")
           FIVE_MINUTES_AGO=$(date -u -d '5 minutes ago' +"%Y-%m-%dT%H:%M:%SZ")
-
-          az login --service-principal -u $ARM_CLIENT_ID -p $ARM_CLIENT_SECRET --tenant $ARM_TENANT_ID
 
           az storage blob upload-batch \
             --account-name $STORAGE_ACCOUNT_NAME \
