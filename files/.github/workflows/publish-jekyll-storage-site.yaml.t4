@@ -1,0 +1,103 @@
+name: AT-AT-Publish-Jekyll-Storage-Site-${environment_name}
+
+on:
+  workflow_run:
+    workflows: ["AT-AT-Release-${environment_name}"]
+    types: 
+      - completed
+
+jobs:
+  infra:
+    runs-on: ubuntu-latest
+    env:
+      TERRAFORM_VERSION: "1.9.0"
+    outputs:
+      storage_account_name: $${{ steps.apply.outputs.storage_account_name }}
+
+    environment:
+      name: ${environment_name}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - id: setup
+        name: Setup `terraform`
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: $${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - id: apply
+        name: Terraform Apply
+        env:
+          ARM_SUBSCRIPTION_ID: $${{ vars.ARM_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: $${{ vars.ARM_TENANT_ID }}
+          ARM_CLIENT_ID: $${{ vars.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: $${{ secrets.ARM_CLIENT_SECRET }}
+          TF_VAR_application_name: $${{ vars.APPLICATION_NAME }}
+          TF_VAR_environment_name: $${{ vars.ENVIRONMENT_NAME }}
+        working-directory: $${{ vars.TERRAFORM_WORKING_DIRECTORY }}
+        run: |
+
+          az login --service-principal -u $ARM_CLIENT_ID -p $ARM_CLIENT_SECRET --tenant $ARM_TENANT_ID
+
+          terraform init \
+            -backend-config="resource_group_name=$${{ vars.TF_BACKEND_RESOURCE_GROUP_NAME }}" \
+            -backend-config="storage_account_name=$${{ vars.TF_BACKEND_STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=$${{ vars.TF_BACKEND_STORAGE_ACCOUNT_CONTAINER_NAME }}" \
+            -backend-config="key=$${{ vars.APPLICATION_NAME }}-$${{ vars.ENVIRONMENT_NAME }}"
+            
+          terraform apply -var-file=./env/$${{ vars.ENVIRONMENT_NAME }}.tfvars -auto-approve
+
+          echo "storage_account_name=$(terraform output -raw storage_account_name)" >> "$GITHUB_OUTPUT"
+
+  jekyll-publish:
+    runs-on: ubuntu-latest
+    needs: infra
+
+    environment:
+      name: ${environment_name}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.0 # You can specify a version compatible with your Jekyll setup
+
+      - name: Install dependencies
+        working-directory: $${{ vars.JEKYLL_WORKING_DIRECTORY }}
+        run: |
+          gem install bundler
+          bundle install
+
+      - name: Build with Jekyll
+        working-directory: $${{ vars.JEKYLL_WORKING_DIRECTORY }}
+        # Outputs to the './_site' directory by default
+        run: bundle exec jekyll build
+        env:
+          JEKYLL_ENV: production
+
+      # Step 6: Upload the Jekyll site to Azure Blob Storage
+      - name: Upload site to Azure Storage
+        working-directory: $${{ vars.JEKYLL_WORKING_DIRECTORY }}
+        env:
+          ARM_SUBSCRIPTION_ID: $${{ vars.ARM_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: $${{ vars.ARM_TENANT_ID }}
+          ARM_CLIENT_ID: $${{ vars.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: $${{ secrets.ARM_CLIENT_SECRET }}
+          STORAGE_ACCOUNT_NAME: $${{ needs.infra.outputs.storage_account_name }}
+        run: |
+
+          ONE_HOUR_AGO=$(date -u -d '1 hour ago' +"%Y-%m-%dT%H:%M:%SZ")
+          FIVE_MINUTES_AGO=$(date -u -d '5 minutes ago' +"%Y-%m-%dT%H:%M:%SZ")
+
+          az login --service-principal -u $ARM_CLIENT_ID -p $ARM_CLIENT_SECRET --tenant $ARM_TENANT_ID
+
+          az storage blob upload-batch \
+            --account-name $STORAGE_ACCOUNT_NAME \
+            --destination '$web' \
+            --source './_site' \
+            --pattern '*' \
+            --overwrite
