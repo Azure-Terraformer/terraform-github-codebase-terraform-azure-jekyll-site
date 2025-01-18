@@ -28,7 +28,7 @@ resource "github_repository_file" "terraform_tfvars" {
   repository = var.repository
   branch     = var.branch
   file       = "${var.path}/terraform.tfvars"
-  content = templatefile("${path.module}/files/terraform.tfvars.t4",
+  content = templatefile("${path.module}/files/src/terraform/terraform.tfvars.t4",
     {
       location = var.location
     }
