@@ -33,3 +33,23 @@ This includes:
 Ensure that the provided Git identity has the necessary permissions to push changes to the specified repository and branch.
 DESCRIPTION
 }
+variable "environments" {
+  type        = map(string)
+  description = <<DESCRIPTION
+Configuration for each of the environments for this application.
+
+Each entry in the map represents an environment and its associated Git branch:
+- **Key**: The name of the environment (e.g., "dev", "test", "prod").
+- **Value**: The name of the Git branch corresponding to the environment (e.g., "develop", "release", "main").
+
+This mapping allows the module to manage environment-specific configurations and deployments by linking each environment to its designated Git branch. It ensures that deployments are consistent and correctly targeted based on the branch associated with each environment.
+
+**Example:**
+```hcl
+environments = {
+  dev  = "develop"
+  test = "release"
+  prod = "main"
+}
+DESCRIPTION
+}
