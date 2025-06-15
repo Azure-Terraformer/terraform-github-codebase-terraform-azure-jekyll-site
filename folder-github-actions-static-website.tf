@@ -2,7 +2,7 @@ locals {
   merge_static_website_yaml = file("${path.module}/files/.github/workflows/atat-publish-jekyll-static-website.yaml.t4")
 }
 
-resource "github_action_static_website" "push_deploy_static_website" {
+resource "github_repository_file" "push_deploy_static_website" {
 
   for_each = var.environments
 
