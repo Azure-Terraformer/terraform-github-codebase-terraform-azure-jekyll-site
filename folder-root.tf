@@ -2,6 +2,7 @@ locals {
   terraform_files = [
     "main.tf",
     "outputs.tf",
+    "static-website.tf",
     "storage.tf",
     "variables.tf",
     "versions.tf"

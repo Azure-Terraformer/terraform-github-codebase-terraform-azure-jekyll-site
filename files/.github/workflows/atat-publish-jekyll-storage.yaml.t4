@@ -1,4 +1,4 @@
-name: AT-AT-Publish-Jekyll-Storage-Site-${environment_name}
+name: AT-AT-Publish-Jekyll-Storage-${environment_name}
 
 on:
   workflow_run:
@@ -34,7 +34,7 @@ jobs:
           terraform_version: $${{ env.TERRAFORM_VERSION }}
 
       - name: 'Az CLI login'
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           client-id: $${{ vars.TERRAFORM_ARM_CLIENT_ID }}
           tenant-id: $${{ vars.ARM_TENANT_ID }}
@@ -93,7 +93,7 @@ jobs:
           JEKYLL_ENV: production
 
       - name: 'Az CLI login'
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           client-id: $${{ vars.TERRAFORM_ARM_CLIENT_ID }}
           tenant-id: $${{ vars.ARM_TENANT_ID }}

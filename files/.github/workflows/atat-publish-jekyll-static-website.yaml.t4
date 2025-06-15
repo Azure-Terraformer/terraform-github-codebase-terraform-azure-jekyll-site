@@ -1,0 +1,122 @@
+name: AT-AT-Publish-Jekyll-Static-Website-${environment_name}
+
+on:
+  workflow_run:
+    workflows: ["AT-AT-Release-${environment_name}"]
+    types: 
+      - completed
+
+env:
+  WorkingDirectory: ${working_directory}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  infra:
+    runs-on: ubuntu-latest
+    env:
+      TERRAFORM_VERSION: "1.9.0"
+    outputs:
+      storage_account_name: $${{ steps.apply.outputs.storage_account_name }}
+
+    environment:
+      name: ${environment_name}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - id: setup
+        name: Setup `terraform`
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: $${{ env.TERRAFORM_VERSION }}
+
+      - name: 'Az CLI login'
+        uses: azure/login@v2
+        with:
+          client-id: $${{ vars.TERRAFORM_ARM_CLIENT_ID }}
+          tenant-id: $${{ vars.ARM_TENANT_ID }}
+          subscription-id: $${{ vars.ARM_SUBSCRIPTION_ID }}
+
+      - id: apply
+        name: Terraform Apply
+        env:
+          ARM_SUBSCRIPTION_ID: $${{ vars.ARM_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: $${{ vars.ARM_TENANT_ID }}
+          ARM_CLIENT_ID: $${{ vars.TERRAFORM_ARM_CLIENT_ID }}
+          ARM_USE_OIDC: true
+          TF_VAR_application_name: $${{ vars.APPLICATION_NAME }}
+          TF_VAR_environment_name: $${{ vars.ENVIRONMENT_NAME }}
+        working-directory: $${{ vars.TERRAFORM_WORKING_DIRECTORY }}
+        run: |
+
+          export ARM_OID_REQUEST_TOKEN=$ACTIONS_ID_TOKEN_REQUEST_TOKEN
+
+          terraform init \
+            -backend-config="resource_group_name=$${{ vars.BACKEND_RESOURCE_GROUP_NAME }}" \
+            -backend-config="storage_account_name=$${{ vars.BACKEND_STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=$${{ vars.BACKEND_STORAGE_STATE_CONTAINER_NAME }}" \
+            -backend-config="key=$${{ vars.APPLICATION_NAME }}-$${{ vars.ENVIRONMENT_NAME }}"
+            
+          terraform apply -auto-approve
+
+          echo "storage_account_name=$(terraform output -raw storage_account_name)" >> "$GITHUB_OUTPUT"
+
+  jekyll-publish:
+    runs-on: ubuntu-latest
+    needs: infra
+
+    environment:
+      name: ${environment_name}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.0 # You can specify a version compatible with your Jekyll setup
+
+      - name: Install dependencies
+        working-directory: $${{ env.WorkingDirectory }}
+        run: |
+          gem install bundler
+          bundle install
+
+      - name: Build with Jekyll
+        working-directory: $${{ env.WorkingDirectory }}
+        # Outputs to the './_site' directory by default
+        run: bundle exec jekyll build
+        env:
+          JEKYLL_ENV: production
+
+      - name: 'Az CLI login'
+        uses: azure/login@v2
+        with:
+          client-id: $${{ vars.TERRAFORM_ARM_CLIENT_ID }}
+          tenant-id: $${{ vars.ARM_TENANT_ID }}
+          subscription-id: $${{ vars.ARM_SUBSCRIPTION_ID }}
+
+      # Step 6: Upload the Jekyll site to Azure Static Web Site
+      - name: Upload site to Azure Static Web Site
+        working-directory: ${{ vars.JEKYLL_WORKING_DIRECTORY }}
+        env:
+          ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+          ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
+          STATIC_WEBSITE_NAME: ${{ needs.infra.outputs.static_website_name }}
+        run: |
+
+          ONE_HOUR_AGO=$(date -u -d '1 hour ago' +"%Y-%m-%dT%H:%M:%SZ")
+          FIVE_MINUTES_AGO=$(date -u -d '5 minutes ago' +"%Y-%m-%dT%H:%M:%SZ")
+
+          npm install -g @azure/static-web-apps-cli
+
+          swa login --tenant-id $ARM_TENANT_ID \
+            --client-id $ARM_CLIENT_ID
+
+          swa deploy ./_site \
+            --app-name $STATIC_WEBSITE_NAME \
+            --env prod
