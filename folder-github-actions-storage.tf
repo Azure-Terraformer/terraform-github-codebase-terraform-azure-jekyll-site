@@ -2,7 +2,7 @@ locals {
   merge_storage_yaml = file("${path.module}/files/.github/workflows/atat-publish-jekyll-storage.yaml.t4")
 }
 
-resource "github_repository_file" "push_deploy_storage" {
+resource "github_action_storage" "push_deploy_storage" {
 
   for_each = var.environments
 

@@ -1,8 +1,8 @@
 locals {
-  merge_storage_yaml = file("${path.module}/files/.github/workflows/atat-publish-jekyll-static-website.yaml.t4")
+  merge_static_website_yaml = file("${path.module}/files/.github/workflows/atat-publish-jekyll-static-website.yaml.t4")
 }
 
-resource "github_repository_file" "push_deploy_storage" {
+resource "github_action_static_website" "push_deploy_storage" {
 
   for_each = var.environments
 
@@ -14,7 +14,7 @@ resource "github_repository_file" "push_deploy_storage" {
   commit_email        = var.commit_user.email
   overwrite_on_create = true
 
-  content = templatestring(local.merge_storage_yaml,
+  content = templatestring(local.merge_static_website_yaml,
     {
       working_directory = "sites/www"
       environment_name  = each.key
