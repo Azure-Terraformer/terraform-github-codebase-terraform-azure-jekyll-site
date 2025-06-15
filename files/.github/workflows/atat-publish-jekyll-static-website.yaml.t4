@@ -101,7 +101,7 @@ jobs:
 
       # Step 6: Upload the Jekyll site to Azure Static Web Site
       - name: Upload site to Azure Static Web Site
-        working-directory: $${{ vars.JEKYLL_WORKING_DIRECTORY }}
+        working-directory: $${{ env.WorkingDirectory }}
         env:
           ARM_SUBSCRIPTION_ID: $${{ vars.ARM_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: $${{ vars.ARM_TENANT_ID }}
