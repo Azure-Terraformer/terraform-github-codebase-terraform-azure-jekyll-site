@@ -2,5 +2,10 @@ output "resource_group_name" {
   value = azurerm_resource_group.main.name
 }
 output "storage_account_name" {
-  value = azurerm_storage_account.main.name
+  value       = var.hosting_option == "storage" ? azurerm_storage_account.main[0].name : null
+  description = "The name of the storage account, if provisioned."
+}
+output "static_website_name" {
+  value       = var.hosting_option == "static-website" ? azurerm_static_web_app.main[0].name : null
+  description = "The name of the static web app, if provisioned."
 }

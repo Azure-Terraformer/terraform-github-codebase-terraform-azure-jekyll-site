@@ -1,10 +1,7 @@
 name: AT-AT-Publish-Jekyll-Storage-${environment_name}
 
 on:
-  workflow_run:
-    workflows: ["AT-AT-Release-${environment_name}"]
-    types: 
-      - completed
+  workflow_dispatch:
 
 env:
   WorkingDirectory: ${working_directory}

@@ -1,10 +1,7 @@
 name: AT-AT-Publish-Jekyll-Static-Website-${environment_name}
 
 on:
-  workflow_run:
-    workflows: ["AT-AT-Release-${environment_name}"]
-    types: 
-      - completed
+  workflow_dispatch:
 
 env:
   WorkingDirectory: ${working_directory}
@@ -19,7 +16,7 @@ jobs:
     env:
       TERRAFORM_VERSION: "1.9.0"
     outputs:
-      storage_account_name: $${{ steps.apply.outputs.storage_account_name }}
+      static_website_name: $${{ steps.apply.outputs.static_website_name }}
 
     environment:
       name: ${environment_name}
@@ -62,7 +59,7 @@ jobs:
             
           terraform apply -auto-approve
 
-          echo "storage_account_name=$(terraform output -raw storage_account_name)" >> "$GITHUB_OUTPUT"
+          echo "static_website_name=$(terraform output -raw static_website_name)" >> "$GITHUB_OUTPUT"
 
   jekyll-publish:
     runs-on: ubuntu-latest
@@ -120,4 +117,4 @@ jobs:
 
           swa deploy ./_site \
             --app-name $STATIC_WEBSITE_NAME \
-            --env prod
+            --env Production
